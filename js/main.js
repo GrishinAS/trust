@@ -1,4 +1,17 @@
 var slideshow, slideSelect;
+
+// Global error handler
+window.onerror = function(message, source, lineno, colno, error) {
+	console.error("Global error:", message, "at", source, ":", lineno, ":", colno);
+	console.error("Error object:", error);
+	return false; // Don't suppress default browser error handling
+};
+
+// Promise rejection handler
+window.addEventListener('unhandledrejection', function(event) {
+	console.error("Unhandled promise rejection:", event.reason);
+});
+
 window.onload = function(){
 
 	// PRELOADER
@@ -56,6 +69,10 @@ window.onload = function(){
 		// First slide!
 		slideshow.nextSlide();
 
-	});
+	}).catch(function(error){
+		console.error("Error during initialization:", error);
+		console.error("Error stack:", error.stack);
+		alert("Error loading game: " + error.message);
+	}).done(); // This forces Q.js to throw unhandled rejections
 
 };

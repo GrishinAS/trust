@@ -11,7 +11,8 @@ Tournament.resetGlobalVariables = function(){
 		{strategy:"prober", count:3},
 		{strategy:"tf2t", count:3},
 		{strategy:"pavlov", count:3},
-		{strategy:"random", count:4}
+		{strategy:"random", count:4},
+		{strategy:"ai", count:2}
 	];
 
 	Tournament.FLOWER_CONNECTIONS = false;
@@ -104,7 +105,7 @@ function Tournament(config){
 
 			// What kind of agent?
 			var strategy = self.agents[i];
-			var agent = new TournamentAgent({angle:angle, strategy:strategy, tournament:self});
+			var agent = new TournamentAgent({angle:angle, strategy:strategy, tournament:self, id: 'agent_' + i});
 			self.agentsContainer.addChild(agent.graphics);
 
 			// Remember me!
@@ -279,7 +280,8 @@ function Tournament(config){
 			var strategy = goodAgent.strategyName;
 
 			// Create agent!
-			var agent = new TournamentAgent({angle:angle, strategy:strategy, tournament:self});
+			let id = 'agent_repro_' + Math.random().toString(36).substr(2, 9);
+			var agent = new TournamentAgent({angle:angle, strategy:strategy, tournament:self, id: id});
 			self.agentsContainer.addChild(agent.graphics);
 
 			// Splice RIGHT AFTER
@@ -567,6 +569,7 @@ function TournamentAgent(config){
 	self.tournament = config.tournament;
 	self.angle = config.angle;
 	self.gotoAngle = self.angle;
+	self.id = config.id || 'agent_' + Math.random().toString(36).substr(2, 9);
 
 	// Connections
 	self.connections = [];
@@ -624,11 +627,15 @@ function TournamentAgent(config){
 	// What's the play logic?
 	var LogicClass = window["Logic_"+self.strategyName];
 	self.logic = new LogicClass();
-	self.play = function(){
-		return self.logic.play();
+	self.play = function(opponentId){
+		return self.logic.play(opponentId);
 	};
 	self.remember = function(own, other){
 		self.logic.remember(own, other);
+	};
+
+	self.rememberPlayerMove = function(player, move){
+		self.logic.rememberPlayerMove(player, move);
 	};
 
 	// Reset!

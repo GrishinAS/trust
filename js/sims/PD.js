@@ -6,7 +6,8 @@ var PEEP_METADATA = {
 	prober: {frame:4, color:"#f6b24c"},
 	  tf2t: {frame:5, color:"#88A8CE"},
 	pavlov: {frame:6, color:"#86C448"},
-	random: {frame:7, color:"#FF5E5E"}
+	random: {frame:7, color:"#FF5E5E"},
+		ai: {frame:1, color:"#000000"}
 };
 
 var PD = {};
@@ -56,8 +57,8 @@ PD.getPayoffs = function(move1, move2){
 PD.playOneGame = function(playerA, playerB){
 
 	// Make your moves!
-	var A = playerA.play();
-	var B = playerB.play();
+	var A = playerA.play(playerB.id || playerB);
+	var B = playerB.play(playerA.id || playerA);
 
 	// Noise: random mistakes, flip around!
 	if(Math.random()<PD.NOISE) A = ((A==PD.COOPERATE) ? PD.CHEAT : PD.COOPERATE);
@@ -69,6 +70,13 @@ PD.playOneGame = function(playerA, playerB){
 	// Remember own & other's moves (or mistakes)
 	playerA.remember(A, B);
 	playerB.remember(B, A);
+
+	if (playerA.logic == "ai") {
+		playerA.rememberPlayerMove(playerB.id, B);
+	}
+	if (playerB.logic == "ai") {
+		playerB.rememberPlayerMove(playerA.id, A);
+	}
 
 	// Add to scores (only in tournament?)
 	playerA.addPayoff(payoffs[0]);
@@ -128,7 +136,7 @@ PD.playOneTournament = function(agents, turns){
 function Logic_tft(){
 	var self = this;
 	var otherMove = PD.COOPERATE;
-	self.play = function(){
+	self.play = function(opponentId){
 		return otherMove;
 	};
 	self.remember = function(own, other){
@@ -139,7 +147,7 @@ function Logic_tft(){
 function Logic_tf2t(){
 	var self = this;
 	var howManyTimesCheated = 0;
-	self.play = function(){
+	self.play = function(opponentId){
 		if(howManyTimesCheated>=2){
 			return PD.CHEAT; // retaliate ONLY after two betrayals
 		}else{
@@ -158,7 +166,7 @@ function Logic_tf2t(){
 function Logic_grudge(){
 	var self = this;
 	var everCheatedMe = false;
-	self.play = function(){
+	self.play = function(opponentId){
 		if(everCheatedMe) return PD.CHEAT;
 		return PD.COOPERATE;
 	};
@@ -169,7 +177,7 @@ function Logic_grudge(){
 
 function Logic_all_d(){
 	var self = this;
-	self.play = function(){
+	self.play = function(opponentId){
 		return PD.CHEAT;
 	};
 	self.remember = function(own, other){
@@ -179,7 +187,7 @@ function Logic_all_d(){
 
 function Logic_all_c(){
 	var self = this;
-	self.play = function(){
+	self.play = function(opponentId){
 		return PD.COOPERATE;
 	};
 	self.remember = function(own, other){
@@ -189,7 +197,7 @@ function Logic_all_c(){
 
 function Logic_random(){
 	var self = this;
-	self.play = function(){
+	self.play = function(opponentId){
 		return (Math.random()>0.5 ? PD.COOPERATE : PD.CHEAT);
 	};
 	self.remember = function(own, other){
@@ -202,7 +210,7 @@ function Logic_random(){
 function Logic_pavlov(){
 	var self = this;
 	var myLastMove = PD.COOPERATE;
-	self.play = function(){
+	self.play = function(opponentId){
 		return myLastMove;
 	};
 	self.remember = function(own, other){
@@ -222,7 +230,7 @@ function Logic_prober(){
 	var everCheatedMe = false;
 
 	var otherMove = PD.COOPERATE;
-	self.play = function(){
+	self.play = function(opponentId){
 		if(moves.length>0){
 			// Testing phase
 			var move = moves.shift();
@@ -243,3 +251,47 @@ function Logic_prober(){
 	};
 
 }
+
+function Logic_ai() {
+
+	var self = this;
+
+	var history = new Map();
+	var decision = PD.COOPERATE;
+
+	self.play = function (opponentId) {
+		var moves = history.get(opponentId) || [];
+		var prompt = `I'm playing prisoner's dilemma. The history of the previous moves of this player against me: ${JSON.stringify(moves)}. 
+			What should I do next? Answer only with COOPERATE or CHEAT.`;
+
+		callLlama(prompt).then(function (advice) {
+			console.log("LLM's advice:", advice);
+			if (advice.includes("COOPERATE")) {
+				decision = PD.COOPERATE;
+			} else if (advice.includes("CHEAT")) {
+				decision = PD.CHEAT;
+			}
+		}).catch(function (error) {
+			console.error("Error calling Claude:", error);
+			decision = PD.COOPERATE;
+		});
+
+		return decision;
+	};
+
+	self.remember = function(own, other){
+		// nah
+	};
+
+	self.rememberPlayerMove = function(player, move){
+		var moves = history.get(player);
+		if (!Array.isArray(moves)) {
+			moves = [];
+			history.set(player, moves);
+		}
+		moves.push(move);
+	};
+}
+
+
+

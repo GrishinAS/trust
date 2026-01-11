@@ -141,7 +141,7 @@ function Iterated(config){
 		// Make your moves!
 		var A = yourMove;
 		if(yourMove=="TRIP") A=PD.CHEAT;
-		var B = self.opponentLogic.play();
+		var B = self.opponentLogic.play('human_player');
 
 		// Get payoffs
 		var payoffs = PD.getPayoffs(A,B);

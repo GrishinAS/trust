@@ -173,6 +173,7 @@ function SandboxUI(config){
 	_makePopulationControl(xDiff, yOff+yDiff*2, "tf2t",		3);
 	_makePopulationControl(    0, yOff+yDiff*3, "pavlov",	3);
 	_makePopulationControl(xDiff, yOff+yDiff*3, "random",	4);
+	_makePopulationControl(    0, yOff+yDiff*4, "ai",	2);
 
 	// Adjust the WHOLE population...
 	/******************************
