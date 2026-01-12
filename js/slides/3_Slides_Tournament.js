@@ -105,13 +105,13 @@ SLIDES.push({
 			x:510, y:230, width:450, height:500
 		});
 
-		var showTournament = function(num){
+		var showTournament = async function(num){
 
 			var words = "";
 			var match_header;
 
 			// PLAY MATCH
-			var matchData = o.tournament.playMatch(num);
+			var matchData = await o.tournament.playMatch(num);
 			var charA = matchData.charA;
 			var charB = matchData.charB;
 			var scoreA = matchData.scoreA

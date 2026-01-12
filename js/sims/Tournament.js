@@ -184,7 +184,7 @@ function Tournament(config){
 	// SHOW MATCHES ////////////////////
 	////////////////////////////////////
 
-	self.playMatch = function(number){
+	self.playMatch = async function(number){
 
 		// GET OUR MATCH
 		var matches = [];
@@ -206,7 +206,7 @@ function Tournament(config){
 		connection.highlight();
 
 		// Actually PLAY the game -- HACK: HARD-CODE 10 ROUNDS
-		var scores = PD.playRepeatedGame(match[0], match[1], 10);
+		var scores = await PD.playRepeatedGame(match[0], match[1], 10);
 
 		// Return ALL this data...
 		return {
@@ -228,8 +228,8 @@ function Tournament(config){
 
 	// Play one tournament
 	self.agentsSorted = null;
-	self.playOneTournament = function(){
-		PD.playOneTournament(self.agents, Tournament.NUM_TURNS);
+	self.playOneTournament = async function(){
+		await PD.playOneTournament(self.agents, Tournament.NUM_TURNS);
 		self.agentsSorted = _shuffleArray(self.agents.slice());
 		self.agentsSorted.sort(function(a,b){ return a.coins-b.coins; });
 	};
@@ -359,11 +359,17 @@ function Tournament(config){
 					self.agents[_playIndex].highlightConnections();
 					_playIndex += self.isAutoPlaying ? 2 : 1;
 				}else{
-					self.playOneTournament(); // FOR REAL, NOW.
+					// Start the tournament (async) and update UI when done
+					self.playOneTournament().then(function(){
+						// Tournament complete
+						publish("tournament/step/completed", ["play"]);
+					}).catch(function(error){
+						console.error("Error during tournament:", error);
+						publish("tournament/step/completed", ["play"]);
+					});
 					_playIndex = 0;
 					_tweenTimer = 0;
 					self.STAGE = STAGE_REST;
-					publish("tournament/step/completed", ["play"]);
 				}
 			//}
 		}

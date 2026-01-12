@@ -54,16 +54,20 @@ PD.getPayoffs = function(move1, move2){
 	if(move1==PD.COOPERATE && move2==PD.COOPERATE) return [payoffs.R, payoffs.R]; // both rewarded
 };
 
-PD.playOneGame = function(playerA, playerB){
+PD.playOneGame = async function(playerA, playerB){
 
-	// Make your moves!
+	// Make your moves! (await if they're async)
 	var A = playerA.play(playerB.id || playerB);
 	var B = playerB.play(playerA.id || playerA);
+
+	// Wait for both moves if they're promises
+	if (A && typeof A.then === 'function') A = await A;
+	if (B && typeof B.then === 'function') B = await B;
 
 	// Noise: random mistakes, flip around!
 	if(Math.random()<PD.NOISE) A = ((A==PD.COOPERATE) ? PD.CHEAT : PD.COOPERATE);
 	if(Math.random()<PD.NOISE) B = ((B==PD.COOPERATE) ? PD.CHEAT : PD.COOPERATE);
-	
+
 	// Get payoffs
 	var payoffs = PD.getPayoffs(A,B);
 
@@ -87,7 +91,7 @@ PD.playOneGame = function(playerA, playerB){
 
 };
 
-PD.playRepeatedGame = function(playerA, playerB, turns){
+PD.playRepeatedGame = async function(playerA, playerB, turns){
 
 	// I've never met you before, let's pretend
 	playerA.resetLogic();
@@ -100,7 +104,7 @@ PD.playRepeatedGame = function(playerA, playerB, turns){
 		payoffs:[]
 	};
 	for(var i=0; i<turns; i++){
-		var p = PD.playOneGame(playerA, playerB);
+		var p = await PD.playOneGame(playerA, playerB);
 		scores.payoffs.push(p);
 		scores.totalA += p[0];
 		scores.totalB += p[1];
@@ -111,7 +115,7 @@ PD.playRepeatedGame = function(playerA, playerB, turns){
 
 };
 
-PD.playOneTournament = function(agents, turns){
+PD.playOneTournament = async function(agents, turns){
 
 	// Reset everyone's coins
 	for(var i=0; i<agents.length; i++){
@@ -123,8 +127,8 @@ PD.playOneTournament = function(agents, turns){
 		var playerA = agents[i];
 		for(var j=i+1; j<agents.length; j++){
 			var playerB = agents[j];
-			PD.playRepeatedGame(playerA, playerB, turns);
-		}	
+			await PD.playRepeatedGame(playerA, playerB, turns);
+		}
 	}
 
 };
@@ -257,26 +261,29 @@ function Logic_ai() {
 	var self = this;
 
 	var history = new Map();
-	var decision = PD.COOPERATE;
 
-	self.play = function (opponentId) {
+	self.play = async function (opponentId) {
 		var moves = history.get(opponentId) || [];
-		var prompt = `I'm playing prisoner's dilemma. The history of the previous moves of this player against me: ${JSON.stringify(moves)}. 
+		var prompt = `I'm playing prisoner's dilemma. The history of the previous moves of this player against me: ${JSON.stringify(moves)}.
 			What should I do next? Answer only with COOPERATE or CHEAT.`;
 
-		callLlama(prompt).then(function (advice) {
-			console.log("LLM's advice:", advice);
-			if (advice.includes("COOPERATE")) {
-				decision = PD.COOPERATE;
-			} else if (advice.includes("CHEAT")) {
-				decision = PD.CHEAT;
-			}
-		}).catch(function (error) {
-			console.error("Error calling Claude:", error);
-			decision = PD.COOPERATE;
-		});
+		try {
+			var advice = await callLlama(prompt);
+			console.log("LLM's advice for opponent", opponentId, ":", advice);
 
-		return decision;
+			if (advice.includes("COOPERATE")) {
+				return PD.COOPERATE;
+			} else if (advice.includes("CHEAT")) {
+				return PD.CHEAT;
+			} else {
+				// Default if response is unclear
+				console.warn("Unclear AI response, defaulting to COOPERATE");
+				return PD.COOPERATE;
+			}
+		} catch (error) {
+			console.error("Error calling LLM:", error);
+			return PD.COOPERATE;
+		}
 	};
 
 	self.remember = function(own, other){
