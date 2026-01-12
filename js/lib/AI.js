@@ -1,10 +1,27 @@
+// AI Configuration
+// You can set these in a separate config.js file or via localStorage
+var AIConfig = window.AIConfig || {
+    // Claude API Configuration
+    CLAUDE_API_KEY: localStorage.getItem('CLAUDE_API_KEY') || '',
+    CLAUDE_MODEL: localStorage.getItem('CLAUDE_MODEL') || 'claude-sonnet-4-20250514',
+
+    // Ollama/Llama Configuration
+    OLLAMA_ENDPOINT: localStorage.getItem('OLLAMA_ENDPOINT') || 'http://192.168.1.249:11434/api/chat',
+    OLLAMA_MODEL: localStorage.getItem('OLLAMA_MODEL') || 'qwen2.5:14b'
+};
+
+// Helper to get config value with fallback
+function getAIConfig(key, fallback) {
+    return AIConfig[key] || localStorage.getItem(key) || fallback || '';
+}
+
 // Request Queue Manager for batching API calls
 var AIRequestQueue = (function() {
     var queue = [];
     var processing = false;
     var BATCH_SIZE = 3; // Process 3 requests at a time
-    var DELAY_BETWEEN_BATCHES = 200; // 500ms delay between batches
-    var DELAY_BETWEEN_REQUESTS = 50; // 100ms delay between individual requests in a batch
+    var DELAY_BETWEEN_BATCHES = 200; // 200ms delay between batches
+    var DELAY_BETWEEN_REQUESTS = 50; // 50ms delay between individual requests in a batch
 
     function addToQueue(request) {
         return new Promise(function(resolve, reject) {
@@ -64,15 +81,20 @@ var AIRequestQueue = (function() {
 
 async function callClaude(userMessage) {
     return AIRequestQueue.add(async function() {
+        var apiKey = getAIConfig('CLAUDE_API_KEY');
+        if (!apiKey) {
+            throw new Error('Claude API key not configured. Set AIConfig.CLAUDE_API_KEY or localStorage.CLAUDE_API_KEY');
+        }
+
         const response = await fetch("https://api.anthropic.com/v1/messages", {
             method: "POST",
             headers: {
                 "Content-Type": "application/json",
-                "x-api-key": "",
+                "x-api-key": apiKey,
                 "anthropic-version": "2023-06-01"
             },
             body: JSON.stringify({
-                model: "claude-sonnet-4-20250514",
+                model: getAIConfig('CLAUDE_MODEL', 'claude-sonnet-4-20250514'),
                 max_tokens: 1024,
                 messages: [{
                     role: "user",
@@ -89,13 +111,16 @@ async function callClaude(userMessage) {
 
 async function callLlama(userMessage) {
     return AIRequestQueue.add(async function() {
-        const response = await fetch("http://192.168.1.1:11434/api/chat", {
+        var endpoint = getAIConfig('OLLAMA_ENDPOINT', 'http://192.168.1.249:11434/api/chat');
+        var model = getAIConfig('OLLAMA_MODEL', 'qwen2.5:14b');
+
+        const response = await fetch(endpoint, {
             method: "POST",
             headers: {
                 "Content-Type": "application/json"
             },
             body: JSON.stringify({
-                model: "qwen2.5:14b",
+                model: model,
                 max_tokens: 1024,
                 messages: [{
                     role: "user",

@@ -1,0 +1,10 @@
+# AI Configuration (contains API keys)
+js/config.js
+
+# Environment files
+.env
+.env.local
+
+# IDE
+.idea/
+.vscode/
